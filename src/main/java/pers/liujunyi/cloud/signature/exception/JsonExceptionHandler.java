@@ -1,6 +1,7 @@
 package pers.liujunyi.cloud.signature.exception;
 
 
+import lombok.extern.log4j.Log4j2;
 import org.springframework.boot.autoconfigure.web.ErrorProperties;
 import org.springframework.boot.autoconfigure.web.ResourceProperties;
 import org.springframework.boot.autoconfigure.web.reactive.error.DefaultErrorWebExceptionHandler;
@@ -18,6 +19,7 @@ import java.util.Map;
  * @author ljy
  *
  */
+@Log4j2
 public class JsonExceptionHandler extends DefaultErrorWebExceptionHandler {
 
 
@@ -66,7 +68,9 @@ public class JsonExceptionHandler extends DefaultErrorWebExceptionHandler {
             message.append(": ");
             message.append(ex.getMessage());
         }
-        return message.toString();
+        String msg = message.toString();
+        log.info("异常描述：" + message.toString());
+        return msg;
     }
 
     /**

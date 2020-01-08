@@ -136,7 +136,7 @@ public class SignAuthFilter implements GlobalFilter, Ordered {
 						}
 					}
 				}
-				log.info(" >> " + requestUrl +" 签名校验通过....  ");
+				log.info(" >> " + requestUrl +" 签名校验通过.  ");
 			} catch (Exception e) {
 				log.info(" >> 非法请求:" + requestUrl + " 签名校验错误.");
 				e.printStackTrace();
