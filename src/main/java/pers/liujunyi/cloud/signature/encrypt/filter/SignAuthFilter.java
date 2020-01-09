@@ -82,7 +82,7 @@ public class SignAuthFilter implements GlobalFilter, Ordered {
             }
         }
 		if (!through) {
-			log.info(">> " + requestUrl + " 不进行签名校验....");
+			log.info(">> 请求:" + requestUrl + " 不进行签名校验....");
 			return chain.filter(exchange);
 		}
         boolean pass = true;
