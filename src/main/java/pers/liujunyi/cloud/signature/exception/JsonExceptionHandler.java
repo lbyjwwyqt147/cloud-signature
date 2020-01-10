@@ -7,9 +7,14 @@ import org.springframework.boot.autoconfigure.web.ResourceProperties;
 import org.springframework.boot.autoconfigure.web.reactive.error.DefaultErrorWebExceptionHandler;
 import org.springframework.boot.web.reactive.error.ErrorAttributes;
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.BindException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.reactive.function.server.*;
 import pers.liujunyi.cloud.signature.util.DateTimeUtils;
 
+import javax.validation.ValidationException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,6 +41,14 @@ public class JsonExceptionHandler extends DefaultErrorWebExceptionHandler {
         Throwable error = super.getError(request);
         if (error instanceof org.springframework.cloud.gateway.support.NotFoundException) {
             code = 404;
+        } else if (error instanceof BindException) {
+            code = ErrorCodeEnum.PARAMS.getCode();
+        } else if (error instanceof MethodArgumentNotValidException) {
+            code = ErrorCodeEnum.PARAMS.getCode();
+        } else if (error instanceof ValidationException) {
+            code = HttpStatus.BAD_REQUEST.value();
+        } else if (error instanceof HttpMessageNotReadableException) {
+            code = HttpStatus.BAD_REQUEST.value();
         }
         return response(code, this.buildMessage(request, error));
     }

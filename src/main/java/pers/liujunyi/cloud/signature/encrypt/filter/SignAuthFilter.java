@@ -28,6 +28,7 @@ import reactor.core.publisher.Mono;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 /**
@@ -73,19 +74,19 @@ public class SignAuthFilter implements GlobalFilter, Ordered {
 		log.info(">> HttpMethod:{}, Url:{}", httpServletRequest.getMethod(), requestUrl);
         // 不需要进行签名校验的url
         String[] antMatchers = matchStarts.trim().split(",");
-		boolean through = false;
-        for (String matchers : antMatchers) {
-            PathMatcher requestMatcher = new AntPathMatcher();
-            through = requestMatcher.matchStart(matchers.trim(), requestUrl);
-            if (through) {
+		AtomicBoolean through = new AtomicBoolean(false);
+		PathMatcher requestMatcher = new AntPathMatcher();
+		for (String matchers : antMatchers) {
+			through.set(requestMatcher.matchStart(matchers.trim(), requestUrl));
+            if (through.get()) {
                 break;
             }
         }
-		if (!through) {
+		if (!through.get()) {
 			log.info(">> 请求:" + requestUrl + " 不进行签名校验....");
 			return chain.filter(exchange);
 		}
-        boolean pass = true;
+		AtomicBoolean pass = new AtomicBoolean(true);
 		ResultInfo result = new ResultInfo();
 		result.setTimestamp(DateTimeUtils.getCurrentDateTimeAsString());
 		result.setSuccess(false);
@@ -94,9 +95,9 @@ public class SignAuthFilter implements GlobalFilter, Ordered {
 		String sign = headers.getFirst("sign");
 		if (!StringUtils.hasText(sign)) {
 			log.info(" >> 非法请求: " + requestUrl + " 缺少签名信息");
-			pass = false;
+			pass.set(false);
 		}
-		if (pass) {
+		if (pass.get()) {
 			try {
 				String decryptBody = AesEncryptUtils.aesDecrypt(sign, signObj.getSecretKey().trim());
 				Map<String, Object> signInfo = JsonUtils.getMapper().readValue(decryptBody, Map.class);
@@ -105,18 +106,18 @@ public class SignAuthFilter implements GlobalFilter, Ordered {
 				boolean validateParameter = (Boolean) signInfo.get("parameter");
 				if (!curSecret.equals(signObj.getSecretKey().trim())) {
 					log.info(" >> 非法请求: " + requestUrl + " 签名信息不正确");
-					pass = false;
+					pass.set(false);
 				}
-				if (pass) {
+				if (pass.get()) {
 					// 签名时间和服务器时间相差10分钟以上则认为是过期请求，此时间可以配置
 					if ((System.currentTimeMillis() - curSignTime) > signObj.getSignExpireTime() * this.signExpireTime) {
 						log.info(" >> 非法请求:" + requestUrl + " 请求已过期");
 						result.setStatus(ErrorCodeEnum.SIGN_TIME_OUT.getCode());
 						result.setMessage("非法请求：请求已过期.");
-						pass = false;
+						pass.set(false);
 					}
 				}
-				if (pass) {
+				if (pass.get()) {
 					// POST请求只处理时间
 					// GET请求处理参数和时间(参数信息需要在签名信息中才行)
 					if(validateParameter && httpServletRequest.getMethod().equals(HttpMethod.GET.name())) {
@@ -130,7 +131,7 @@ public class SignAuthFilter implements GlobalFilter, Ordered {
 									log.info(" >> 非法请求:" + requestUrl + " 参数被篡改");
 									result.setStatus(ErrorCodeEnum.SIGN_INVALID.getCode());
 									result.setMessage("非法请求：参数被篡改.");
-									pass = false;
+									pass.set(false);
 								}
 							}
 						}
@@ -142,10 +143,10 @@ public class SignAuthFilter implements GlobalFilter, Ordered {
 				e.printStackTrace();
 			}
 		}
-		if (!pass) {
+		if (!pass.get()) {
 			byte[] datas = JsonUtils.toJson(result).getBytes(StandardCharsets.UTF_8);
 			DataBuffer buffer = httpServletResponse.bufferFactory().wrap(datas);
-			httpServletResponse.setStatusCode(HttpStatus.UNAUTHORIZED);
+			httpServletResponse.setStatusCode(HttpStatus.OK);
 			httpServletResponse.getHeaders().add("Content-Type", "application/json;charset=UTF-8");
 			return httpServletResponse.writeWith(Mono.just(buffer));
 		}
