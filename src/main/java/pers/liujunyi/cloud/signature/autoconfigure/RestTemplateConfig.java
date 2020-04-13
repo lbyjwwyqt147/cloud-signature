@@ -9,7 +9,7 @@ import org.springframework.web.client.RestTemplate;
  * @author ljy
  */
 @Configuration
-public class RibbonConfig {
+public class RestTemplateConfig {
 
     /**
      * 添加 @LoadBlanced 注解，使得 RestTemplate 接入 Ribbon，使得利用restTemplate能否实现负载均衡
