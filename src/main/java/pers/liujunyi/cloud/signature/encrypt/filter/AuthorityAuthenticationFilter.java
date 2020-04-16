@@ -66,6 +66,17 @@ public class AuthorityAuthenticationFilter implements GlobalFilter, Ordered {
         PathMatcher requestMatcher = new AntPathMatcher();
         AtomicBoolean checked = new AtomicBoolean(requestUrl.startsWith("/centre"));
         if (!checked.get()) {
+            requestUrl = requestUrl.substring(requestUrl.indexOf("/api"));
+            AtomicBoolean examine = new AtomicBoolean(true);
+            // 不需要进行权限校验的url
+            String[] antMatchers = excludeAntMatchers.trim().split(",");
+            for (String matchers : antMatchers) {
+                boolean through = requestMatcher.match(matchers.trim(), requestUrl);
+                if (through) {
+                    examine.set(false);
+                    break;
+                }
+            }
             requestUrl = requestUrl.substring(requestUrl.indexOf("/", 2));
             HttpHeaders headers = httpServletRequest.getHeaders();
             String accessToken = httpServletRequest.getQueryParams().getFirst("access_token");
@@ -73,17 +84,6 @@ public class AuthorityAuthenticationFilter implements GlobalFilter, Ordered {
             if (StringUtils.isNotBlank(headerToken) && StringUtils.isBlank(accessToken)) {
                 accessToken = headerToken.indexOf("bearer") != -1 ? headerToken.split(" ")[1] : "";
             }
-            AtomicBoolean examine = new AtomicBoolean(true);
-            // 不需要进行权限校验的url
-            String[] antMatchers = excludeAntMatchers.trim().split(",");
-            for (String matchers : antMatchers) {
-               boolean through = requestMatcher.match(matchers.trim(), requestUrl);
-                if (through) {
-                    examine.set(false);
-                    break;
-                }
-            }
-
             if (examine.get()) {
                 // 验证是否拥有API访问权限
                 String getUrl = authorizationUrl + "api/v1/ignore/authority/authentication?token={token}&requestUrl={requestUrl}";
