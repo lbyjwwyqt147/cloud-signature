@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * API权限认证过滤器
+ * API权限认证过滤器  顺序 先进行接口签名校验，然后再对接口权限校验
  * @author ljy
  */
 @Log4j2
