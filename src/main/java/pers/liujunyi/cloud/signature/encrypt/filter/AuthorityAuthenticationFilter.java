@@ -19,6 +19,7 @@ import org.springframework.util.AntPathMatcher;
 import org.springframework.util.PathMatcher;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ServerWebExchange;
+import pers.liujunyi.cloud.signature.autoconfigure.IgnoreSecurityConfig;
 import pers.liujunyi.cloud.signature.exception.ErrorCodeEnum;
 import pers.liujunyi.cloud.signature.restful.ResultInfo;
 import pers.liujunyi.cloud.signature.util.DateTimeUtils;
@@ -26,6 +27,7 @@ import pers.liujunyi.cloud.signature.util.JsonUtils;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -38,8 +40,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Component
 public class AuthorityAuthenticationFilter implements GlobalFilter, Ordered {
 
-    @Value("${data.security.antMatchers}")
-    private String excludeAntMatchers;
+    /** 不需要权限认证的资源 */
+    @Autowired
+    private IgnoreSecurityConfig ignoreSecurityConfig;
     @Value("${data.security.user-authorization-uri}")
     private String authorizationUrl;
     private static final String HEADER_AUTHORIZATION = "Authorization";
@@ -69,8 +72,8 @@ public class AuthorityAuthenticationFilter implements GlobalFilter, Ordered {
             requestUrl = requestUrl.substring(requestUrl.indexOf("/api"));
             AtomicBoolean examine = new AtomicBoolean(true);
             // 不需要进行权限校验的url
-            String[] antMatchers = excludeAntMatchers.trim().split(",");
-            for (String matchers : antMatchers) {
+            List<String> ignoreAntMatchers = ignoreSecurityConfig.getAntMatchers();
+            for (String matchers : ignoreAntMatchers) {
                 boolean through = requestMatcher.match(matchers.trim(), requestUrl);
                 if (through) {
                     examine.set(false);
