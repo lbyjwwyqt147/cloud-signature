@@ -1,8 +1,7 @@
-package pers.liujunyi.cloud.signature.encrypt.filter;
+package pers.liujunyi.cloud.signature.authorization;
 
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -17,8 +16,8 @@ import org.springframework.util.AntPathMatcher;
 import org.springframework.util.PathMatcher;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ServerWebExchange;
+import pers.liujunyi.cloud.signature.autoconfigure.SignatureSecurityConfig;
 import pers.liujunyi.cloud.signature.encrypt.AesEncryptUtils;
-import pers.liujunyi.cloud.signature.encrypt.SignInfo;
 import pers.liujunyi.cloud.signature.exception.ErrorCodeEnum;
 import pers.liujunyi.cloud.signature.restful.ResultInfo;
 import pers.liujunyi.cloud.signature.util.DateTimeUtils;
@@ -26,6 +25,7 @@ import pers.liujunyi.cloud.signature.util.JsonUtils;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -43,13 +43,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Log4j2
 @Component
-public class SignAuthFilter implements GlobalFilter, Ordered {
+public class SignAuthenticationFilter implements GlobalFilter, Ordered {
 
 	/** sign 过期时间 */
 	private Integer signExpireTime = 60000;
 
-	@Value("${data.sign.matchStart}")
-	private String matchStarts;
+	/** 需要校验签名信息资源 */
+	@Autowired
+	private SignatureSecurityConfig signatureSecurityConfig;
 
 	@Autowired
 	private SignInfo signObj;
@@ -73,9 +74,9 @@ public class SignAuthFilter implements GlobalFilter, Ordered {
 		log.info(">> 数字签名校验开始...............");
 		log.info(">> HttpMethod:{}, Url:{}", httpServletRequest.getMethod(), requestUrl);
         // 不需要进行签名校验的url
-        String[] antMatchers = matchStarts.trim().split(",");
 		AtomicBoolean through = new AtomicBoolean(false);
 		PathMatcher requestMatcher = new AntPathMatcher();
+		List<String> antMatchers = signatureSecurityConfig.getAntMatchers();
 		for (String matchers : antMatchers) {
 			through.set(requestMatcher.matchStart(matchers.trim(), requestUrl));
             if (through.get()) {

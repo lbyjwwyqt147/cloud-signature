@@ -1,4 +1,4 @@
-package pers.liujunyi.cloud.signature.encrypt.filter;
+package pers.liujunyi.cloud.signature.authorization;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

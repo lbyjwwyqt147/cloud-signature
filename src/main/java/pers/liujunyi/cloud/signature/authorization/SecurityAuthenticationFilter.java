@@ -1,4 +1,4 @@
-package pers.liujunyi.cloud.signature.encrypt.filter;
+package pers.liujunyi.cloud.signature.authorization;
 
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.StringUtils;
@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Log4j2
 @Component
-public class AuthorityAuthenticationFilter implements GlobalFilter, Ordered {
+public class SecurityAuthenticationFilter implements GlobalFilter, Ordered {
 
     /** 不需要权限认证的资源 */
     @Autowired

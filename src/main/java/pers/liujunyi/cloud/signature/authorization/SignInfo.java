@@ -1,4 +1,4 @@
-package pers.liujunyi.cloud.signature.encrypt;
+package pers.liujunyi.cloud.signature.authorization;
 
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
