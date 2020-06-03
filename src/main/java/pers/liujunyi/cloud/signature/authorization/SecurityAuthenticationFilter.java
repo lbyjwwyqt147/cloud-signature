@@ -9,9 +9,7 @@ import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.*;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
@@ -20,7 +18,6 @@ import org.springframework.util.PathMatcher;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ServerWebExchange;
 import pers.liujunyi.cloud.signature.autoconfigure.IgnoreSecurityConfig;
-import pers.liujunyi.cloud.signature.exception.ErrorCodeEnum;
 import pers.liujunyi.cloud.signature.restful.ResultInfo;
 import pers.liujunyi.cloud.signature.util.DateTimeUtils;
 import pers.liujunyi.cloud.signature.util.JsonUtils;
@@ -80,7 +77,7 @@ public class SecurityAuthenticationFilter implements GlobalFilter, Ordered {
                     break;
                 }
             }
-            requestUrl = requestUrl.substring(requestUrl.indexOf("/", 2));
+           // requestUrl = requestUrl.substring(requestUrl.indexOf("/", 2));
             HttpHeaders headers = httpServletRequest.getHeaders();
             String accessToken = httpServletRequest.getQueryParams().getFirst("access_token");
             String headerToken = headers.getFirst(HEADER_AUTHORIZATION);
@@ -89,20 +86,19 @@ public class SecurityAuthenticationFilter implements GlobalFilter, Ordered {
             }
             if (examine.get()) {
                 // 验证是否拥有API访问权限
-                String getUrl = authorizationUrl + "api/v1/ignore/authority/authentication?token={token}&requestUrl={requestUrl}";
+                String getUrl = authorizationUrl + "api/v1/authority/authentication?token={token}&requestUrl={requestUrl}";
                 Map<String, String> params = new ConcurrentHashMap<>();
                 params.put("token", accessToken);
                 params.put("requestUrl", requestUrl);
-                ResultInfo resultInfo = this.restTemplate.getForObject(getUrl, ResultInfo.class, params);
+                HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
+                ResponseEntity<ResultInfo> resEntity = restTemplate.exchange(getUrl.toString(), HttpMethod.GET, requestEntity, ResultInfo.class, params);
+                ResultInfo resultInfo = resEntity.getBody();
                 boolean isAuthenticated = resultInfo.getSuccess();
                 if (!isAuthenticated) {
-                    log.info(">> 请求:" + requestUrl + " 当前用户【" + accessToken + "】 无访问权限.");
-                    ResultInfo result = new ResultInfo();
-                    result.setTimestamp(DateTimeUtils.getCurrentDateTimeAsString());
-                    result.setSuccess(false);
-                    result.setStatus(ErrorCodeEnum.AUTHORITY.getCode());
-                    result.setMessage(ErrorCodeEnum.AUTHORITY.getMessage());
-                    byte[] datas = JsonUtils.toJson(result).getBytes(StandardCharsets.UTF_8);
+                    log.info(">> 请求:" + requestUrl + " 当前用户【" + accessToken + "】 ." + resultInfo.getMessage());
+                    resultInfo.setTimestamp(DateTimeUtils.getCurrentDateTimeAsString());
+                    resultInfo.setSuccess(false);
+                    byte[] datas = JsonUtils.toJson(resultInfo).getBytes(StandardCharsets.UTF_8);
                     DataBuffer buffer = httpServletResponse.bufferFactory().wrap(datas);
                     httpServletResponse.setStatusCode(HttpStatus.OK);
                     httpServletResponse.getHeaders().add("Content-Type", "application/json;charset=UTF-8");
