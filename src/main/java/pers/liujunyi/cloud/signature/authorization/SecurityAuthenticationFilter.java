@@ -94,10 +94,10 @@ public class SecurityAuthenticationFilter implements GlobalFilter, Ordered {
                 resultInfo.setSuccess(true);
                 HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
                 // 校验token 有效性
-                checkTokenUrl = checkTokenUrl + "?token={token}";
+                String checkUrl = checkTokenUrl + "?token={token}";
                 Map<String, String> tokenParams = new ConcurrentHashMap<>();
                 tokenParams.put("token", accessToken);
-                ResponseEntity<JSONObject> checkTokenEntity = restTemplate.exchange(checkTokenUrl, HttpMethod.GET, requestEntity, JSONObject.class, tokenParams);
+                ResponseEntity<JSONObject> checkTokenEntity = restTemplate.exchange(checkUrl, HttpMethod.GET, requestEntity, JSONObject.class, tokenParams);
                 String checkEntity = JSON.toJSONString(checkTokenEntity.getBody());
                 log.info(">> 请求:" + requestUrl + " 当前token【" + accessToken + "】 token合法性校验结果：" + checkEntity);
                 JSONObject jsonObject = checkTokenEntity.getBody();
