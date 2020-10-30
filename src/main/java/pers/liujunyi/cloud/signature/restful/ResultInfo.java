@@ -29,6 +29,7 @@ public class ResultInfo implements Serializable {
     private Boolean success = true;
     /** 总记录条数 */
     private Long total;
+    private String description;
 
     public ResultInfo(){
 

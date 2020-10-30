@@ -1,5 +1,7 @@
 package pers.liujunyi.cloud.signature.authorization;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import lombok.extern.log4j.Log4j2;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,11 +44,14 @@ public class SecurityAuthenticationFilter implements GlobalFilter, Ordered {
     private IgnoreSecurityConfig ignoreSecurityConfig;
     @Value("${data.security.user-authorization-uri}")
     private String authorizationUrl;
+    @Value("${security.oauth2.authorization.check-token-access}")
+    private String checkTokenUrl;
+    @Value("${data.security.authorizationRequestUrl.enabled}")
+    private Boolean enabledAuthorizationRequestUrl;
     private static final String HEADER_AUTHORIZATION = "Authorization";
     @Autowired
     @Lazy
     private RestTemplate restTemplate;
-
 
     @Override
     public int getOrder() {
@@ -85,19 +90,38 @@ public class SecurityAuthenticationFilter implements GlobalFilter, Ordered {
                 accessToken = headerToken.indexOf("bearer") != -1 ? headerToken.split(" ")[1] : "";
             }
             if (examine.get()) {
-                // 验证是否拥有API访问权限
-                String getUrl = authorizationUrl + "api/v1/authority/authentication?token={token}&requestUrl={requestUrl}";
-                Map<String, String> params = new ConcurrentHashMap<>();
-                params.put("token", accessToken);
-                params.put("requestUrl", requestUrl);
+                ResultInfo resultInfo = new ResultInfo();
+                resultInfo.setSuccess(true);
                 HttpEntity<String> requestEntity = new HttpEntity<>(null, headers);
-                ResponseEntity<ResultInfo> resEntity = restTemplate.exchange(getUrl.toString(), HttpMethod.GET, requestEntity, ResultInfo.class, params);
-                ResultInfo resultInfo = resEntity.getBody();
-                boolean isAuthenticated = resultInfo.getSuccess();
-                if (!isAuthenticated) {
-                    log.info(">> 请求:" + requestUrl + " 当前用户【" + accessToken + "】 ." + resultInfo.getMessage());
-                    resultInfo.setTimestamp(DateTimeUtils.getCurrentDateTimeAsString());
+                // 校验token 有效性
+                checkTokenUrl = checkTokenUrl + "?token={token}";
+                Map<String, String> tokenParams = new ConcurrentHashMap<>();
+                tokenParams.put("token", accessToken);
+                ResponseEntity<JSONObject> checkTokenEntity = restTemplate.exchange(checkTokenUrl, HttpMethod.GET, requestEntity, JSONObject.class, tokenParams);
+                String checkEntity = JSON.toJSONString(checkTokenEntity.getBody());
+                log.info(">> 请求:" + requestUrl + " 当前token【" + accessToken + "】 token合法性校验结果：" + checkEntity);
+                JSONObject jsonObject = checkTokenEntity.getBody();
+                boolean checkStatus = jsonObject.getBoolean("success") != null ? jsonObject.getBoolean("success") : true;
+                if (checkStatus && enabledAuthorizationRequestUrl) {
+                    // 验证是否拥有API访问权限； 如果不进行详细API访问权限认证，只对token有效性进行校验，则不需要下面业务代码
+                    String getUrl = authorizationUrl + "api/v1/authority/authentication?token={token}&requestUrl={requestUrl}";
+                    Map<String, String> params = new ConcurrentHashMap<>();
+                    params.put("token", accessToken);
+                    params.put("requestUrl", requestUrl);
+                    ResponseEntity<ResultInfo> resEntity = restTemplate.exchange(getUrl, HttpMethod.GET, requestEntity, ResultInfo.class, params);
+                    resultInfo = resEntity.getBody();
+                    boolean isAuthenticated = resultInfo.getSuccess();
+                    if (!isAuthenticated) {
+                        log.info(">> 请求:" + requestUrl + " 当前用户【" + accessToken + "】 ." + resultInfo.getMessage());
+                        resultInfo.setSuccess(false);
+                    }
+                } else {
                     resultInfo.setSuccess(false);
+                    resultInfo.setStatus(HttpStatus.UNAUTHORIZED.value());
+                    resultInfo.setMessage("无效的token.");
+                }
+                if (!resultInfo.getSuccess()) {
+                    resultInfo.setTimestamp(DateTimeUtils.getCurrentDateTimeAsString());
                     byte[] datas = JsonUtils.toJson(resultInfo).getBytes(StandardCharsets.UTF_8);
                     DataBuffer buffer = httpServletResponse.bufferFactory().wrap(datas);
                     httpServletResponse.setStatusCode(HttpStatus.OK);
